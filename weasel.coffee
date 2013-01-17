@@ -29,15 +29,14 @@ wss.on 'connection', (ws) ->
     client = mubsub("mongodb://localhost:27017/#{db}")
     channel = client.channel("#{collection}.weasel")
     
-    console.log "S #{resourceUrl}"
-
     # TODO: Allow custom queries.
     if id
         query = {id: id}
     else
         query = {}
 
-    subscription = channel.subscribe {id: id}, (doc) ->
+    console.log "S #{resourceUrl}"
+    subscription = channel.subscribe query, (doc) ->
         sendUpdate = -> 
             console.log "< #{resourceUrl}", doc
             ws.send JSON.stringify(doc)

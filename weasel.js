@@ -32,7 +32,6 @@
     });
     client = mubsub("mongodb://localhost:27017/" + db);
     channel = client.channel("" + collection + ".weasel");
-    console.log("S " + resourceUrl);
     if (id) {
       query = {
         id: id
@@ -40,9 +39,8 @@
     } else {
       query = {};
     }
-    subscription = channel.subscribe({
-      id: id
-    }, function(doc) {
+    console.log("S " + resourceUrl);
+    subscription = channel.subscribe(query, function(doc) {
       var sendUpdate;
       sendUpdate = function() {
         console.log("< " + resourceUrl, doc);

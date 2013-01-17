@@ -7,16 +7,27 @@
     <script>
         var db = "blah";
         var collection = "foo";
+        
         var docId = "4fcf877f7e59cb2a55000001";
-        var docSocket = new WebSocket('ws://localhost:7777/'+db+'/'+collection+'/'+docId);
+        var docSocket = new WebSocket("ws://localhost:7777/"+db+"/"+collection+"/"+docId);
         docSocket.onmessage = function (msg) {
-            console.log("GOT UPDATE: ", msg.data);
+            console.log("GOT UPDATE FOR "+docId+": ", msg.data);
         };
         docSocket.onopen = function () {
             var update = {'id':docId, 'foo': new Date()};
             console.log("Sending update for "+docId+":", update);
             docSocket.send(JSON.stringify(update));
         };
+
+        var collectionSocket = new WebSocket("ws://localhost:7777/"+db+"/"+collection);
+        collectionSocket.onmessage = function (msg) {
+            console.log("GOT UPDATE FOR "+collection+": ", msg.data);
+        };
+        collectionSocket.onopen = function () {
+            var update = {'meh': new Date()};
+            console.log("Sending update for "+collection+":", update);
+            collectionSocket.send(JSON.stringify(update));
+        }
     </script>
 </body>
 </html>
