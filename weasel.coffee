@@ -1,4 +1,5 @@
-WebSocketServer = require('ws').Server
+WebSocket = require('ws')
+WebSocketServer = WebSocket.Server
 URL = require('url')
 mubsub = require('mubsub')
 
@@ -10,7 +11,7 @@ wss.on 'connection', (ws) ->
     url = URL.parse(ws.upgradeReq.url)
     console.log "@ #{URL.format url}"
 
-    [db, collection, id] = url.pathname.replace(/^\//, '').split("/")
+    [db, collection, id, wid] = url.pathname.replace(/^\//, '').split("/")
 
     if db? and collection? and id?
         resourceUrl = "/#{db}/#{collection}/#{id}"
@@ -19,9 +20,24 @@ wss.on 'connection', (ws) ->
     else
         console.error "! #{url}"
 
-    ws.on 'message', (doc) ->
-        console.log "> #{resourceUrl}", doc
-        channel.publish JSON.parse(doc)
+    ws.on 'message', (broadcastJSON) ->
+        if typeof broadcastJSON is 'string'
+            try
+                broadcast = JSON.parse(broadcastJSON)
+            catch e
+                console.error "Couldn't parse JSON message: ", broadcastJSON
+                return
+        else
+            broadcast = broadcastJSON
+
+        broadcast.docId = broadcast.data._id
+
+        channel.publish broadcast, ->
+            console.log "> #{resourceUrl}",
+                "##{broadcast.bid}", 
+                broadcast.action.toUpperCase(), 
+                broadcast.data,
+                broadcast.origin
 
     # FIXME: This probably creates a new mongodb connection for each
     #        WebSocket. Change this so that connections are shared/pooled.
@@ -31,28 +47,45 @@ wss.on 'connection', (ws) ->
     
     # TODO: Allow custom queries.
     if id
-        query = {id: id}
+        query = {docId: id}
     else
         query = {}
 
-    console.log "S #{resourceUrl}"
-    subscription = channel.subscribe query, (doc) ->
+    
+    subscription = channel.subscribe query, (broadcast) ->
         sendUpdate = -> 
-            console.log "< #{resourceUrl}", doc
-            ws.send JSON.stringify(doc)
+            console.log "< #{resourceUrl}##{wid}",
+                "##{broadcast.bid}", 
+                broadcast.action.toUpperCase(), 
+                broadcast.data,
+                broadcast.origin
+
+            ws.send JSON.stringify(broadcast)
         
-        if ws.readyState is 0
-            ws.on 'open', sendUpdate
-        else if ws.readyState is 1
+        if ws.readyState is WebSocket.OPEN
             sendUpdate()
-        else if ws.readyState is 2
+        else if ws.readyState is WebSocket.CONNECTING
+            ws.on 'open', sendUpdate
+        else if ws.readyState is WebSocket.CLOSING
             console.warn "WebSocket is closing; cannot send update!"
-        else if ws.readyState is 4
+        else if ws.readyState is WebSocket.CLOSED
             console.warn "WebSocket is closed; cannot send update!"
         else
             console.error "WebSocket is in a weird state!", ws.readyState
 
     ws.on 'close', ->
-        console.log "X #{resourceUrl}"
+        console.log "X #{resourceUrl}##{wid}"
         subscription.unsubscribe() # probably unneccessary; client.close() is enough
         client.close()
+
+    ack = 
+        status: "SUCCESS",
+        url: URL.format(url),
+        db: db,
+        collection: collection,
+        id: id,
+        wid: wid
+
+    console.log "S #{resourceUrl}##{wid}"
+    ws.send JSON.stringify(ack)
+
