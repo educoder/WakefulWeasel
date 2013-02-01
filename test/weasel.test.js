@@ -314,12 +314,14 @@
               }
             });
           });
-          return it("should transmit doc and collection broadcast to all subscribers of collection", function(done) {
-            var clients, coll_rloc, coll_url, doc_rloc1, doc_rloc2, doc_url1, doc_url2, i, received, reqPub, reqSub, subCount, ws, _i, _j, _len;
+          it("should transmit doc and collection broadcast to all subscribers of collection", function(done) {
+            var clients, coll_rloc, coll_url, doc_rloc1, doc_rloc2, doc_rloc3, doc_url1, doc_url2, doc_url3, i, received, reqPub, reqSub, subCount, ws, _i, _j, _len;
             doc_url1 = "" + DROWSY_URL + "/" + TEST_DB + "/" + TEST_COLLECTION + "/000000000000000000000001";
             doc_rloc1 = new Weasel.ResourceLocator(doc_url1);
             doc_url2 = "" + DROWSY_URL + "/" + TEST_DB + "/" + TEST_COLLECTION + "/000000000000000000000002";
             doc_rloc2 = new Weasel.ResourceLocator(doc_url2);
+            doc_url3 = "" + DROWSY_URL + "/" + TEST_DB + "/" + TEST_COLLECTION + "_foo/000000000000000000000003";
+            doc_rloc3 = new Weasel.ResourceLocator(doc_url3);
             coll_url = "" + DROWSY_URL + "/" + TEST_DB + "/" + TEST_COLLECTION;
             coll_rloc = new Weasel.ResourceLocator(coll_url);
             reqSub = {
@@ -374,8 +376,35 @@
                   foo: 0,
                   bar: 1
                 };
-                return clients[1].sendWhenReady(reqPub);
+                clients[1].sendWhenReady(reqPub);
+                reqPub.url = doc_url3;
+                reqPub.data = {
+                  foo: 1,
+                  bar: 0
+                };
+                return clients[2].sendWhenReady(reqPub);
               }
+            });
+          });
+          return it("should not crap out if we publish to a url no one is subscribed to", function(done) {
+            var doc_rloc1, doc_url1, reqPub, ws;
+            doc_url1 = "" + DROWSY_URL + "/" + TEST_DB + "/" + TEST_COLLECTION + "_nope/000000000000000000000099";
+            doc_rloc1 = new Weasel.ResourceLocator(doc_url1);
+            reqPub = {
+              type: 'PUBLISH',
+              url: doc_url1,
+              action: 'update',
+              data: {
+                stuff: 'foo'
+              },
+              origin: 'test1'
+            };
+            ws = new this.WSClient(WAKEFUL_URL);
+            (function() {
+              return ws.sendWhenReady(reqPub);
+            }).should.not["throw"](Error);
+            return this.weasel.on('published', function() {
+              return done();
             });
           });
         });

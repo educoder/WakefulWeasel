@@ -17,8 +17,14 @@ class Mubsub
         broadcast.doc_id = rloc.id if rloc.id?
 
         channel = @channels["#{rloc.db}/#{rloc.collection}"]
-        channel.publish broadcast, (ev) ->
+
+        if channel?
+            channel.publish broadcast, (ev) ->
+                deferredPublish.resolve(broadcast)
+        else
             deferredPublish.resolve(broadcast)
+
+        
 
         return deferredPublish
 

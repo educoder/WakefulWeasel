@@ -261,6 +261,9 @@ describe 'WakefulWeasel', ->
                     doc_url2 = "#{DROWSY_URL}/#{TEST_DB}/#{TEST_COLLECTION}/000000000000000000000002"
                     doc_rloc2 = new Weasel.ResourceLocator(doc_url2)
 
+                    doc_url3 = "#{DROWSY_URL}/#{TEST_DB}/#{TEST_COLLECTION}_foo/000000000000000000000003"
+                    doc_rloc3 = new Weasel.ResourceLocator(doc_url3)
+
                     coll_url = "#{DROWSY_URL}/#{TEST_DB}/#{TEST_COLLECTION}"
                     coll_rloc = new Weasel.ResourceLocator(coll_url)
 
@@ -304,8 +307,32 @@ describe 'WakefulWeasel', ->
                             reqPub.url = doc_url2
                             reqPub.data = {foo: 0, bar: 1}
                             clients[1].sendWhenReady reqPub
+                            # this one is going to a different collection
+                            reqPub.url = doc_url3
+                            reqPub.data = {foo: 1, bar: 0}
+                            clients[2].sendWhenReady reqPub
 
-                
+                it "should not crap out if we publish to a url no one is subscribed to", (done) ->
+                    # FIXME: this test might not actually be working
+
+                    doc_url1 = "#{DROWSY_URL}/#{TEST_DB}/#{TEST_COLLECTION}_nope/000000000000000000000099"
+                    doc_rloc1 = new Weasel.ResourceLocator(doc_url1)
+
+                    reqPub =
+                        type: 'PUBLISH'
+                        url: doc_url1
+                        action: 'update'
+                        data: {stuff: 'foo'}
+                        origin: 'test1'
+
+
+                    ws = new @WSClient(WAKEFUL_URL)
+
+                    (-> ws.sendWhenReady reqPub).should.not.throw(Error)
+                    
+
+                    @weasel.on 'published', -> done()
+                        
 
 
 

@@ -30,9 +30,13 @@
         broadcast.doc_id = rloc.id;
       }
       channel = this.channels["" + rloc.db + "/" + rloc.collection];
-      channel.publish(broadcast, function(ev) {
-        return deferredPublish.resolve(broadcast);
-      });
+      if (channel != null) {
+        channel.publish(broadcast, function(ev) {
+          return deferredPublish.resolve(broadcast);
+        });
+      } else {
+        deferredPublish.resolve(broadcast);
+      }
       return deferredPublish;
     };
 
