@@ -2,90 +2,159 @@ WebSocket = require('ws')
 WebSocketServer = WebSocket.Server
 URL = require('url')
 mubsub = require('mubsub')
+events = require('events')
 
-console.log "Waking the Weasel!"
+#console.log "Waking the Weasel!"
 
-wss = new WebSocketServer(port: 7777)
+class Weasel extends events.EventEmitter
+    constructor: (options = {}) ->
+        @options = options
+        @options.port ?= 7777
 
-wss.on 'connection', (ws) ->
-    url = URL.parse(ws.upgradeReq.url)
-    console.log "@ #{URL.format url}"
+        @pubusub = options.pubsub if options.pubsub?
+        @logger = options.logger ? console
 
-    [db, collection, id, wid] = url.pathname.replace(/^\//, '').split("/")
+        @websockets = []
 
-    if db? and collection? and id?
-        resourceUrl = "/#{db}/#{collection}/#{id}"
-    else if db? and collection?
-        resourceUrl = "/#{db}/#{collection}"
-    else
-        console.error "! #{url}"
+        # mapping of URLs to WebSockets;
+        # e.g.:
+        #   {
+        #     "/mydb/mycoll/123": [ws1, ws2],
+        #     "/mydb/mycoll/234": [ws3],
+        #     "/mydb/mycoll": [ws2] 
+        #   }
+        @subscribers = {}
 
-    ws.on 'message', (broadcastJSON) ->
-        if typeof broadcastJSON is 'string'
-            try
-                broadcast = JSON.parse(broadcastJSON)
-            catch e
-                console.error "Couldn't parse JSON message: ", broadcastJSON
-                return
+    listen: ->
+        @wss = new WebSocketServer(port: @options.port)
+
+        @wss.on 'listening', => @emit('listening')
+
+        @wss.on 'connection', (ws) =>
+            # clients are assigned client ids (cids) incrementally;
+            # cids are never re-used within a Weasel instance
+            cid = @websockets.length
+            @websockets[cid] = ws
+
+            ws.on 'close', =>
+                delete @websockets[cid]
+
+            ws.on 'message', (json) =>
+                # TODO: handle JSON parse error
+                req = JSON.parse(json)
+
+                req.cid = cid
+                ws.cid = cid
+
+                # TODO: handle invalid request type
+                Weasel.protocol[req.type].call(this, req)
+
+    stop: ->
+        @wss.close()
+        @emit('stopped')
+
+    broadcast: (rloc, bcast) ->
+        for ws in @subscribers[rloc.url]
+            #ws = @websockets[cid]
+
+            send = => 
+                @logger.log "< #{rloc.url}#",
+                    "##{bcast.bid}", 
+                    bcast.action, 
+                    bcast.data,
+                    bcast.origin
+
+                ws.send JSON.stringify(bcast)
+            
+            if ws.readyState is WebSocket.OPEN
+                send()
+            else if ws.readyState is WebSocket.CONNECTING
+                ws.on 'open', send
+            else if ws.readyState is WebSocket.CLOSING
+                @logger.warn "WebSocket is closing; cannot send update!"
+            else if ws.readyState is WebSocket.CLOSED
+                @logger.warn "WebSocket is closed; cannot send update!"
+            else
+                @logger.error "WebSocket is in a weird state!", ws.readyState
+
+
+    @protocol:
+        PUBLISH: (req) ->
+            rloc = new Weasel.ResourceLocator(req.url)
+
+            bcast = 
+                action: req.action
+                data: req.data
+
+            if req.bid?
+                bcast.bid = req.bid
+            if req.origin?
+                bcast.origin = req.origin
+
+            @pubsub.publish rloc, bcast
+            @emit('published', rloc, bcast)
+            
+            @logger.log "> #{rloc.url}", bcast
+
+        SUBSCRIBE: (req) ->
+            rloc = new Weasel.ResourceLocator(req.url)
+
+            ws = @websockets[req.cid]
+
+            if @subscribers[rloc.url]?
+                # TODO: prevent multiple subscriptions to the same url from one websocket?
+                @subscribers[rloc.url].push(ws)
+                @emit('subscribed', ws)
+                
+                @logger.log "s #{rloc.url} #{req.cid}"
+            else
+                @subscribers[rloc.url] = []
+                @subscribers[rloc.url].push(ws)
+                @emit('subscribed', ws)
+
+                @pubsub.subscribe rloc, (bcast) =>
+                    @broadcast(rloc, bcast)
+                @emit('subscription', rloc)
+
+                @logger.log "S #{rloc.url} #{req.cid}"
+
+
+
+            ws.on 'close', =>
+                idx = @subscribers[rloc.url].indexOf(ws)
+                @subscribers[rloc.url].splice(idx, 1)
+                @emit('unsubscribed', ws)
+                @logger.log "u #{rloc.url} #{req.cid}"
+                if @subscribers[rloc.url].length is 0
+                    @logger.log "U #{rloc.url}"
+                    @pubsub.unsubscribe rloc
+                    @emit('unsubscription', rloc)
+
+            
+
+class Weasel.ResourceLocator
+    constructor: (url) ->
+        parsedUrl = URL.parse(url)
+
+        # TODO: we're ignoring the protocol and hostname. is this okay?
+        [db, collection, id] = parsedUrl.pathname.replace(/^\//, '').split("/")
+
+        if db? and collection? and id?
+            # subscribing to single document
+            normalizedUrl = "/#{db}/#{collection}/#{id}"
+        else if db? and collection?
+            # subscribing to entire collection
+            normalizedUrl = "/#{db}/#{collection}"
         else
-            broadcast = broadcastJSON
+            # TODO: instead of throwing maybe reject deferred or something instead
+            throw new Error("Invalid resource URL #{originalUrl}", originalUrl)
+            @logger.error "! #{originalUrl}"
 
-        broadcast.docId = broadcast.data._id
+        @url = normalizedUrl
+        @db = db
+        @collection = collection
+        @id = id if id?
 
-        channel.publish broadcast, ->
-            console.log "> #{resourceUrl}",
-                "##{broadcast.bid}", 
-                broadcast.action.toUpperCase(), 
-                broadcast.data,
-                broadcast.origin
+    toString: -> @url
 
-    # FIXME: This probably creates a new mongodb connection for each
-    #        WebSocket. Change this so that connections are shared/pooled.
-    #        Might need to modify mubsub to do this.
-    client = mubsub("mongodb://localhost:27017/#{db}")
-    channel = client.channel("#{collection}.weasel")
-    
-    # TODO: Allow custom queries.
-    if id
-        query = {docId: id}
-    else
-        query = {}
-
-    
-    subscription = channel.subscribe query, (broadcast) ->
-        sendUpdate = -> 
-            console.log "< #{resourceUrl}##{wid}",
-                "##{broadcast.bid}", 
-                broadcast.action.toUpperCase(), 
-                broadcast.data,
-                broadcast.origin
-
-            ws.send JSON.stringify(broadcast)
-        
-        if ws.readyState is WebSocket.OPEN
-            sendUpdate()
-        else if ws.readyState is WebSocket.CONNECTING
-            ws.on 'open', sendUpdate
-        else if ws.readyState is WebSocket.CLOSING
-            console.warn "WebSocket is closing; cannot send update!"
-        else if ws.readyState is WebSocket.CLOSED
-            console.warn "WebSocket is closed; cannot send update!"
-        else
-            console.error "WebSocket is in a weird state!", ws.readyState
-
-    ws.on 'close', ->
-        console.log "X #{resourceUrl}##{wid}"
-        subscription.unsubscribe() # probably unneccessary; client.close() is enough
-        client.close()
-
-    ack = 
-        status: "SUCCESS",
-        url: URL.format(url),
-        db: db,
-        collection: collection,
-        id: id,
-        wid: wid
-
-    console.log "S #{resourceUrl}##{wid}"
-    ws.send JSON.stringify(ack)
-
+exports.Weasel = Weasel

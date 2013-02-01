@@ -22,9 +22,11 @@
   },
   "analyze": false,
   "devDependencies": {
+    "chai" : "*",
+    "dfrrd" : "*"
   },
   "bundleDependencies": [
-  ],  
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=0.8"
