@@ -332,7 +332,5 @@ describe 'WakefulWeasel', ->
                     
 
                     @weasel.on 'published', -> done()
-                        
-
-
+                    
 

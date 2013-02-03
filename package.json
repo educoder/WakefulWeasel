@@ -18,7 +18,8 @@
     "ws" : "*"
   },
   "optionalDependencies": {
-    "mubsub" : "*"
+    "mubsub" : "*",
+    "forever" : "*"
   },
   "analyze": false,
   "devDependencies": {

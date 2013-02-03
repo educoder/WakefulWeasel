@@ -1,7 +1,6 @@
 WebSocket = require('ws')
 WebSocketServer = WebSocket.Server
 URL = require('url')
-mubsub = require('mubsub')
 events = require('events')
 
 #console.log "Waking the Weasel!"
@@ -14,16 +13,33 @@ class Weasel extends events.EventEmitter
         @pubusub = options.pubsub if options.pubsub?
         @logger = options.logger ? console
 
-        @websockets = []
-
-        # mapping of URLs to WebSockets;
+        # Mapping of cids (Client IDs) to WebSockets
         # e.g.:
         #   {
-        #     "/mydb/mycoll/123": [ws1, ws2],
-        #     "/mydb/mycoll/234": [ws3],
-        #     "/mydb/mycoll": [ws2] 
+        #     "510c4d49e836b73af0000002": ws1,
+        #     "629c4d49e836b73af0000005": ws2
         #   }
+        # 
+        # Clients will sometimes change websockets (when
+        # for example they lose the connection and have to
+        # reconnect). The cid allows subscribers to carry
+        # over their subscriptions between connections.
+        #
+        # Subscribers must register here by issuing a
+        # REGISTER request.
         @subscribers = {}
+
+        # Mapping of URLs to cids (Client IDs);
+        # e.g.:
+        #   {
+        #     "/mydb/mycoll/123": ["510c4d49e836b73af0000002", "629c4d49e836b73af0000005"],
+        #     "/mydb/mycoll/234": ["510c4d49e836b73af0000002"],
+        #     "/mydb/mycoll": ["629c4d49e836b73af0000005"] 
+        #   }
+        #
+        # Keys (URLs) are added by SUBSCRIBE requests, with subsequent
+        # SUBSCRIBEs adding to the list of cids under that key.
+        @subscriptions = {}
 
     listen: ->
         @wss = new WebSocketServer(port: @options.port)
@@ -31,31 +47,23 @@ class Weasel extends events.EventEmitter
         @wss.on 'listening', => @emit('listening')
 
         @wss.on 'connection', (ws) =>
-            # clients are assigned client ids (cids) incrementally;
-            # cids are never re-used within a Weasel instance
-            cid = @websockets.length
-            @websockets[cid] = ws
-
-            ws.on 'close', =>
-                delete @websockets[cid]
 
             ws.on 'message', (json) =>
                 # TODO: handle JSON parse error
                 req = JSON.parse(json)
 
-                req.cid = cid
-                ws.cid = cid
-
                 # TODO: handle invalid request type
-                Weasel.protocol[req.type].call(this, req)
+                Weasel.protocol[req.type].call(this, req, ws)
 
     stop: ->
         @wss.close()
         @emit('stopped')
 
-    broadcast: (rloc, bcast) ->
-        for ws in @subscribers[rloc.url]
-            #ws = @websockets[cid]
+    broadcastToSubscribers: (rloc, bcast) ->
+        bcast.url = rloc.url
+
+        for cid in @subscriptions[rloc.url]
+            ws = @clients[cid]
 
             send = => 
                 @logger.log "< #{rloc.url}#",
@@ -79,7 +87,10 @@ class Weasel extends events.EventEmitter
 
 
     @protocol:
-        PUBLISH: (req) ->
+        REGISTER: (req, ws) ->
+            req.cid
+
+        BROADCAST: (req, ws) ->
             rloc = new Weasel.ResourceLocator(req.url)
 
             bcast = 
@@ -96,39 +107,38 @@ class Weasel extends events.EventEmitter
             
             @logger.log "> #{rloc.url}", bcast
 
-        SUBSCRIBE: (req) ->
+        SUBSCRIBE: (req, ws) ->
             rloc = new Weasel.ResourceLocator(req.url)
 
-            ws = @websockets[req.cid]
-
-            if @subscribers[rloc.url]?
+            if @subscriptions[rloc.url]?
                 # TODO: prevent multiple subscriptions to the same url from one websocket?
-                @subscribers[rloc.url].push(ws)
-                @emit('subscribed', ws)
+                @subscriptions[rloc.url].push(req.cid)
+                @emit('subscribed', req.cid)
                 
                 @logger.log "s #{rloc.url} #{req.cid}"
             else
-                @subscribers[rloc.url] = []
-                @subscribers[rloc.url].push(ws)
+                @subscriptions[rloc.url] = []
+                @subscriptions[rloc.url].push(ws)
                 @emit('subscribed', ws)
 
                 @pubsub.subscribe rloc, (bcast) =>
-                    @broadcast(rloc, bcast)
+                    @broadcastToSubscribers(rloc, bcast)
                 @emit('subscription', rloc)
 
                 @logger.log "S #{rloc.url} #{req.cid}"
 
-
+            @clients[req.cid] = ws
 
             ws.on 'close', =>
-                idx = @subscribers[rloc.url].indexOf(ws)
-                @subscribers[rloc.url].splice(idx, 1)
-                @emit('unsubscribed', ws)
-                @logger.log "u #{rloc.url} #{req.cid}"
-                if @subscribers[rloc.url].length is 0
-                    @logger.log "U #{rloc.url}"
-                    @pubsub.unsubscribe rloc
-                    @emit('unsubscription', rloc)
+                delete @subscribers[req.cid]
+                # idx = @subscribers[rloc.url].indexOf(ws)
+                # @subscribers[rloc.url].splice(idx, 1)
+                # @emit('unsubscribed', ws)
+                # @logger.log "u #{rloc.url} #{req.cid}"
+                # if @subscribers[rloc.url].length is 0
+                #     @logger.log "U #{rloc.url}"
+                #     @pubsub.unsubscribe rloc
+                #     @emit('unsubscription', rloc)
 
             
 
@@ -158,3 +168,16 @@ class Weasel.ResourceLocator
     toString: -> @url
 
 exports.Weasel = Weasel
+
+# TODO: move this to a bin/weasel.js, using forever.js programmatically
+#   see: https://github.com/nodejitsu/forever#using-forever-module-from-nodejs
+if require.main is module
+    console.log "Waking the Weasel!"
+    pubsub = require('./mubsub')
+    weasel = new Weasel
+        pubsub: new pubsub.Mubsub()
+
+    weasel.on 'listening', ->
+        console.log "... now listening on ws://localhost:#{@options.port}"
+    weasel.listen()
+
