@@ -15,10 +15,9 @@
     "url": "https://github.com/zuk/WakefulWeasel.git"
   },
   "dependencies": {
-    "ws" : "*"
+    "faye" : "*"
   },
   "optionalDependencies": {
-    "mubsub" : "*",
     "forever" : "*"
   },
   "analyze": false,
