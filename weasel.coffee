@@ -5,7 +5,7 @@ PORT = 7777
 MOUNT = '/faye'
 
 console.log "Waking the Weasel..."
-bayeux = new faye.NodeAdapter(mount: MOUNT, timeout: 45)
+bayeux = new faye.NodeAdapter(mount: MOUNT, timeout: 12)
 
 bayeux.bind 'handshake', (cid) ->
     console.log "#{Date.now()} O #{cid}"
