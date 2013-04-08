@@ -14,7 +14,7 @@
 
   bayeux = new faye.NodeAdapter({
     mount: MOUNT,
-    timeout: 12
+    timeout: 30
   });
 
   bayeux.bind('handshake', function(cid) {
