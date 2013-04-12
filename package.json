@@ -15,7 +15,8 @@
     "url": "https://github.com/zuk/WakefulWeasel.git"
   },
   "dependencies": {
-    "faye" : "*"
+    "faye" : "*",
+    "optimist" : "*"
   },
   "optionalDependencies": {
     "forever" : "*"

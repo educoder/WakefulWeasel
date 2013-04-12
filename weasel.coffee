@@ -3,6 +3,14 @@ faye = require('faye')
 fs = require('fs')
 events = require('events')
 
+argv = require('optimist')
+  .usage('Usage:\n\t$0 [-c config.json]')
+  .argv
+
+if argv.c?
+    CONFIG = argv.c
+else
+    CONFIG = './config.json'
 
 class Weasel extends events.EventEmitter
     setupLogging: () ->
@@ -65,17 +73,18 @@ class Weasel extends events.EventEmitter
             mount: '/faye'
             timeout: 30
 
-        configPath = './config.json'
+        configPath = CONFIG
+
         if fs.existsSync(configPath)
             config = JSON.parse fs.readFileSync(configPath)
 
             for key,val of defaults
                 config[key] ?= defaults[key]
 
-            console.log "config.json loaded:", config
+            console.log "Configuration loaded from '#{CONFIG}':", config
         else
             config = defaults
-            console.warn "config.json not found! Using defaults:", config
+            console.warn "Configuration file '#{CONFIG}' not found! Using defaults:", config
 
         @config = config
 
