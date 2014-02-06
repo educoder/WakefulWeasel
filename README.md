@@ -13,7 +13,7 @@ See https://github.com/zuk/Backbone.Drowsy and https://github.com/zuk/DrowsyDrom
 
 ## Start
 
-Change values in config.json to suit your setup
+Copy config.json.example into config.json and change values in config.json to suit your setup
 
     node weasel.js
 
