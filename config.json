@@ -1,8 +1,0 @@
-{
-    "port": 7777,
-    "mount": "/faye",
-    "drowsy": {
-        "hostname": "drowsy.badger.encorelab.org",
-        "port": 80
-    }
-}
