@@ -7,8 +7,8 @@ See https://github.com/zuk/Backbone.Drowsy and https://github.com/zuk/DrowsyDrom
 
 ## Installation
 
-git clone https://github.com/educoder/WakefulWeasel.git
-npm install
+    git clone https://github.com/educoder/WakefulWeasel.git
+    npm install
 
 
 ## Start
