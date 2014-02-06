@@ -1,0 +1,8 @@
+{
+    "port": 7890,
+    "mount": "/faye",
+    "drowsy": {
+        "hostname": "your.server.com",
+        "port": 8080
+    }
+}
