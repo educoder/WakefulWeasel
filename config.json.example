@@ -1,6 +1,12 @@
 {
     "port": 7890,
     "mount": "/faye",
+    "timeout": "35",
+    "engine": {
+    	type:   fayeRedis,
+    	host:   'localhost',
+    	port:   6379
+    }
     "drowsy": {
         "hostname": "your.server.com",
         "port": 8080

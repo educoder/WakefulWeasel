@@ -1,5 +1,6 @@
 http = require('http')
 faye = require('faye')
+fayeRedis = require('faye-redis')
 fs = require('fs')
 events = require('events')
 
@@ -72,6 +73,7 @@ class Weasel extends events.EventEmitter
             port: 7777
             mount: '/faye'
             timeout: 30
+            engine: {}
 
         configPath = CONFIG
 
@@ -89,7 +91,7 @@ class Weasel extends events.EventEmitter
         @config = config
 
     setupFaye: ->
-        @bayeux = new faye.NodeAdapter(mount: @config.mount, timeout: @config.timeout)
+        @bayeux = new faye.NodeAdapter(mount: @config.mount, timeout: @config.timeout, engine: @config.engine)
 
 
     start: ->
