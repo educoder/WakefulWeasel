@@ -68,7 +68,7 @@
       };
       this.bayeux.bind('publish', (function(_this) {
         return function(cid, channel, bcast) {
-          var json, req, reqOpts, _ref, _ref1;
+          var e, json, req, reqOpts, _ref, _ref1;
           reqOpts = {
             hostname: (_ref = drowsy.hostname) != null ? _ref : 'localhost',
             port: (_ref1 = drowsy.port) != null ? _ref1 : 9292,
@@ -91,7 +91,12 @@
           req.setHeader('content-type', 'application/json');
           req.setHeader('content-length', json.length);
           req.write(json);
-          return req.end();
+          try {
+            return req.end;
+          } catch (_error) {
+            e = _error;
+            return console.error(e);
+          }
         };
       })(this));
       return console.log("Drowsy persistence enabled. Broadcasts will be saved to http://" + drowsy.hostname + ":{drowsy.port} ...");

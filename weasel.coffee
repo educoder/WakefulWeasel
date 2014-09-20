@@ -43,6 +43,8 @@ class Weasel extends events.EventEmitter
             patch: 'PATCH'
             delete: 'DELETE'
 
+        drowsyUrl = "http://#{drowsy.hostname}:#{drowsy.port}"
+
         @bayeux.bind 'publish', (cid, channel, bcast) =>
             reqOpts =
                 hostname: drowsy.hostname ? 'localhost'
@@ -58,14 +60,19 @@ class Weasel extends events.EventEmitter
                 else
                     @emit 'persist_failure', cid, channel, bcast, res
 
+            req.on 'error', (err) ->
+                console.error "\n\n!!! Request to Drowsy failed!
+                    Is the Drowsy server up and running at #{drowsyUrl}?\n",
+                    err.toString()
+                throw err;
+
             json = JSON.stringify(bcast.data)
             req.setHeader 'content-type', 'application/json'
             req.setHeader 'content-length', json.length
             req.write json
-            
-            req.end()
+            req.end
 
-        console.log "Drowsy persistence enabled. Broadcasts will be saved to http://#{drowsy.hostname}:{drowsy.port} ..."
+        console.log "Drowsy persistence enabled. Broadcasts will be saved to #{drowsyUrl} ..."
 
     loadConfig: ->
         defaults =
