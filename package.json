@@ -4,30 +4,27 @@
   "version": "0.0.1",
   "author": "Matt Zukowski",
   "description": "PubSub over WebSockets for MongoDB",
-  "contributors": [ 
+  "contributors": [
     {
       "name": "Matt Zukowski",
       "email": "matt@zukowski.ca"
-    } 
+    }
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/zuk/WakefulWeasel.git"
   },
   "dependencies": {
-    "faye" : "0.8.9",
-    "optimist" : "*"
-  },
-  "optionalDependencies": {
-    "forever" : "*"
+    "faye": "0.8.9",
+    "optimist": "*",
+    "request": "~2.44.0"
   },
   "analyze": false,
   "devDependencies": {
-    "chai" : "*",
-    "dfrrd" : "*"
+    "chai": "*",
+    "dfrrd": "*"
   },
-  "bundleDependencies": [
-  ],
+  "bundleDependencies": [],
   "license": "MIT",
   "engines": {
     "node": ">=0.8"

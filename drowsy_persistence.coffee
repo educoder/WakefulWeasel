@@ -1,4 +1,5 @@
 http = require('http')
+httpRequest = require('request')
 events = require('events')
 
 class DrowsyPersistence extends events.EventEmitter
@@ -8,7 +9,7 @@ class DrowsyPersistence extends events.EventEmitter
     console.log "Drowsy persistence enabled. Broadcasts will be saved to #{@drowsyUrl()} ..."
 
   incoming: (message, callback) ->
-    return callback(message)
+    #return callback(message)
     if message.channel.match /^\/meta\//
       return callback(message) # ignore this message
 
@@ -18,47 +19,48 @@ class DrowsyPersistence extends events.EventEmitter
     this.persistInDrowsy message, cb2
 
   actionMethodMap =
-      create: 'POST'
-      update: 'PUT'
-      patch: 'PATCH'
-      delete: 'DELETE'
+    create: 'POST'
+    update: 'PUT'
+    patch: 'PATCH'
+    delete: 'DELETE'
 
   persistInDrowsy: (message, callback) ->
     cid = message.clientId
     channel = message.channel
-    data = message.data
+    payload = message.data
+
+    if @config.uri?
+      baseUri = @config.uri.replace(/\/$/,'')
+    else
+      scheme = @config.scheme ? 'http'
+      hostname = @config.hostname ? 'localhost'
+      port = @config.port ? 9292
+      baseUri = "#{scheme}://#{hostname}:#{port}"
+
+    path = channel
 
     reqOpts =
-      hostname: @config.hostname ? 'localhost'
-      port: @config.port ? 9292
-      path: channel
-      method: actionMethodMap[data.action]
+      uri: "#{baseUri}/#{path}"
+      method: actionMethodMap[payload.action]
+      json: payload.data
 
-    # TODO: fine-tune http agent; see http://nodejs.org/api/http.html#http_class_http_agent
+    httpRequest reqOpts, (err, res, json) =>
+      if err
+        @emit 'persist_failure', cid, channel, payload, err
+        errMsg = "\n\n!!! Error while sending request to Drowsy!
+          Is the Drowsy server up and running at #{this.drowsyUrl()}?\n
+          #{err.toString()}"
+        console.error errMsg
+        message.error = errMsg
+        callback(message)
+        throw err
 
-    req = http.request reqOpts, (res) =>
       if res.statusCode in [200...299]
-        @emit 'persist_success', cid, channel, data, res
+        @emit 'persist_success', cid, channel, payload, res, json
       else
-        @emit 'persist_failure', cid, channel, data, res
+        @emit 'persist_failure', cid, channel, payload, res, json
         message.error = "Failed to persist data in Drowsy; Drowsy responded with a #{res.statusCode}"
       callback(message)
-
-    req.on 'error', (err) =>
-      @emit 'persist_failure', cid, channel, data, err
-      errMsg = "\n\n!!! Error while sending request to Drowsy!
-        Is the Drowsy server up and running at #{this.drowsyUrl()}?\n
-        #{err.toString()}"
-      console.error errMsg
-      message.error = errMsg
-      callback(message)
-      throw err
-
-    json = JSON.stringify(data.data)
-    req.setHeader 'content-type', 'application/json'
-    req.setHeader 'content-length', json.length
-    req.write json
-    req.end
 
   drowsyUrl: ->
     "http://#{@config.hostname}:#{@config.port}"
