@@ -14,67 +14,67 @@ else
     CONFIG = './config.json'
 
 class Weasel extends events.EventEmitter
-    setupLogging: () ->
-        @bayeux.bind 'handshake', (cid) ->
-            console.log "#{Date.now()} [handshk] #{cid}"
-        @bayeux.bind 'subscribe', (cid, channel) ->
-            console.log "#{Date.now()} [sub    ] #{cid} #{channel}"
-        @bayeux.bind 'unsubscribe', (cid, channel) ->
-            console.log "#{Date.now()} [unsub  ] #{cid} #{channel}"
-        @bayeux.bind 'publish', (cid, channel, data) ->
-            console.log "#{Date.now()} [pub    ] #{cid} #{channel}", data
-        @bayeux.bind 'disconnect', (cid, channel, data) ->
-            console.log "#{Date.now()} [disconn] #{cid}"
+  setupLogging: () ->
+    @bayeux.bind 'handshake', (cid) ->
+      console.log "#{Date.now()} [handshk] #{cid}"
+    @bayeux.bind 'subscribe', (cid, channel) ->
+      console.log "#{Date.now()} [sub    ] #{cid} #{channel}"
+    @bayeux.bind 'unsubscribe', (cid, channel) ->
+      console.log "#{Date.now()} [unsub  ] #{cid} #{channel}"
+    @bayeux.bind 'publish', (cid, channel, data) ->
+      console.log "#{Date.now()} [pub    ] #{cid} #{channel}", data
+    @bayeux.bind 'disconnect', (cid, channel, data) ->
+      console.log "#{Date.now()} [disconn] #{cid}"
 
-        @on 'persist_success', (cid, channel, data, res) ->
-            console.log "#{Date.now()} [drwsy.save] #{cid} #{channel} (#{res.statusCode})"
-        @on 'persist_failure', (cid, channel, data, res) ->
-            console.warn "#{Date.now()} [drwsy.fail] #{cid} #{channel} (#{res.statusCode})"
+    @on 'persist_success', (cid, channel, data, res) ->
+      console.log "#{Date.now()} [drwsy.save] #{cid} #{channel} (#{res.statusCode})"
+    @on 'persist_failure', (cid, channel, data, res) ->
+      console.warn "#{Date.now()} [drwsy.fail] #{cid} #{channel} (#{res.statusCode})"
 
-    setupPersistence: ->
-        if @config.drowsy
-            drowsy = new DrowsyPersistence @config.drowsy
-        else
-            console.warn "Drowsy persistence will be disabled because no 'drowsy' config was provided!"
-            return
+  setupPersistence: ->
+    if @config.drowsy
+      drowsy = new DrowsyPersistence @config.drowsy
+    else
+      console.warn "Drowsy persistence will be disabled because no 'drowsy' config was provided!"
+      return
 
-        drowsy.on 'persist_success', (cid, channel, data, res) =>
-            @emit 'persist_success', cid, channel, data, res
-        drowsy.on 'persist_failure', (cid, channel, data, res) =>
-            @emit 'persist_failure', cid, channel, data, res
+    drowsy.on 'persist_success', (cid, channel, data, res) =>
+      @emit 'persist_success', cid, channel, data, res
+    drowsy.on 'persist_failure', (cid, channel, data, res) =>
+      @emit 'persist_failure', cid, channel, data, res
 
-        @bayeux.addExtension(drowsy);
+    @bayeux.addExtension(drowsy);
 
-    loadConfig: ->
-        defaults =
-            port: 7777
-            mount: '/faye'
-            timeout: 30
+  loadConfig: ->
+    defaults =
+      port: 7777
+      mount: '/faye'
+      timeout: 30
 
-        configPath = CONFIG
+    configPath = CONFIG
 
-        if fs.existsSync(configPath)
-            config = JSON.parse fs.readFileSync(configPath)
+    if fs.existsSync(configPath)
+      config = JSON.parse fs.readFileSync(configPath)
 
-            for key,val of defaults
-                config[key] ?= defaults[key]
+      for key,val of defaults
+        config[key] ?= defaults[key]
 
-            console.log "Configuration loaded from '#{CONFIG}':", config
-        else
-            config = defaults
-            console.warn "Configuration file '#{CONFIG}' not found! Using defaults:", config
+      console.log "Configuration loaded from '#{CONFIG}':", config
+    else
+      config = defaults
+      console.warn "Configuration file '#{CONFIG}' not found! Using defaults:", config
 
-        @config = config
+    @config = config
 
-    setupFaye: ->
-        @bayeux = new faye.NodeAdapter(mount: @config.mount, timeout: @config.timeout)
+  setupFaye: ->
+    @bayeux = new faye.NodeAdapter(mount: @config.mount, timeout: @config.timeout)
 
 
-    start: ->
-        server = http.createServer()
-        @bayeux.attach(server)
-        server.listen(@config.port)
-        console.log "... awake and listening on http://localhost:#{@config.port}#{@config.mount}"
+  start: ->
+    server = http.createServer()
+    @bayeux.attach(server)
+    server.listen(@config.port)
+    console.log "... awake and listening on http://localhost:#{@config.port}#{@config.mount}"
 
 
 console.log "Waking the Weasel..."
