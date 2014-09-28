@@ -6,17 +6,14 @@ class DrowsyPersistence extends events.EventEmitter
   constructor: (@config) ->
 
   added: ->
-    console.log "Drowsy persistence enabled. Broadcasts will be saved to #{@drowsyUrl()} ..."
+    console.log "Drowsy persistence enabled. Broadcasts will be saved to #{@drowsyUrl()}."
 
   incoming: (message, callback) ->
     #return callback(message)
     if message.channel.match /^\/meta\//
       return callback(message) # ignore this message
 
-    cb2 = (message) ->
-      console.log("Calling callback!")
-      callback(message)
-    this.persistInDrowsy message, cb2
+    this.persistInDrowsy message, callback
 
   actionMethodMap =
     create: 'POST'
