@@ -57,11 +57,23 @@
         baseUri = "" + scheme + "://" + hostname + ":" + port;
       }
       path = channel;
-      reqOpts = {
-        uri: "" + baseUri + "/" + path,
-        method: actionMethodMap[payload.action],
-        json: payload.data
-      };
+      if ((this.config.username != null) && (this.config.password != null)) {
+        reqOpts = {
+          uri: "" + baseUri + "/" + path,
+          method: actionMethodMap[payload.action],
+          json: payload.data,
+          auth: {
+            user: this.config.username,
+            pass: this.config.password
+          }
+        };
+      } else {
+        reqOpts = {
+          uri: "" + baseUri + "/" + path,
+          method: actionMethodMap[payload.action],
+          json: payload.data
+        };
+      }
       return httpRequest(reqOpts, (function(_this) {
         return function(err, res, json) {
           var errMsg, _i, _ref3, _results;

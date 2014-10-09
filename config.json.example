@@ -2,7 +2,10 @@
     "port": 7890,
     "mount": "/faye",
     "drowsy": {
+        "scheme": "http",
         "hostname": "your.server.com",
-        "port": 8080
+        "port": 8080,
+        "username": "foo",
+        "password": "bar"
     }
 }

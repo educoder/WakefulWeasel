@@ -39,10 +39,25 @@ class DrowsyPersistence extends events.EventEmitter
 
     path = channel
 
-    reqOpts =
-      uri: "#{baseUri}/#{path}"
-      method: actionMethodMap[payload.action]
-      json: payload.data
+    # if @config.username? and @config.password?
+    #   authHash =
+    #     user: @config.username
+    #     pass: @config.password
+
+
+    if @config.username? and @config.password?
+      reqOpts =
+        uri: "#{baseUri}/#{path}"
+        method: actionMethodMap[payload.action]
+        json: payload.data
+        auth:
+          user: @config.username
+          pass: @config.password
+    else
+      reqOpts =
+        uri: "#{baseUri}/#{path}"
+        method: actionMethodMap[payload.action]
+        json: payload.data
 
     httpRequest reqOpts, (err, res, json) =>
       if err
