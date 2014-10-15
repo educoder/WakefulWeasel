@@ -21,19 +21,14 @@
     }
 
     DrowsyPersistence.prototype.added = function() {
-      return console.log("Drowsy persistence enabled. Broadcasts will be saved to " + (this.drowsyUrl()) + " ...");
+      return console.log("Drowsy persistence enabled. Broadcasts will be saved to " + (this.drowsyUrl()) + ".");
     };
 
     DrowsyPersistence.prototype.incoming = function(message, callback) {
-      var cb2;
       if (message.channel.match(/^\/meta\//)) {
         return callback(message);
       }
-      cb2 = function(message) {
-        console.log("Calling callback!");
-        return callback(message);
-      };
-      return this.persistInDrowsy(message, cb2);
+      return this.persistInDrowsy(message, callback);
     };
 
     actionMethodMap = {
