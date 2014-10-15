@@ -17,7 +17,8 @@
   "dependencies": {
     "faye": "0.8.9",
     "optimist": "*",
-    "request": "~2.44.0"
+    "request": "~2.44.0",
+    "mqtt": "~0.3.12"
   },
   "analyze": false,
   "devDependencies": {

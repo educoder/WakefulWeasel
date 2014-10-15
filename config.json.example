@@ -4,5 +4,9 @@
     "drowsy": {
         "hostname": "your.server.com",
         "port": 8080
+    },
+    "mqtt": {
+      "broker_url": "mqtt://your.server.com:1883",
+      "client_options": {}
     }
 }
