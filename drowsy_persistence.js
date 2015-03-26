@@ -101,7 +101,7 @@
     };
 
     DrowsyPersistence.prototype.drowsyUrl = function() {
-      return "http://" + this.config.hostname + ":" + this.config.port;
+      return "" + this.config.scheme + "://" + this.config.hostname + ":" + this.config.port;
     };
 
     return DrowsyPersistence;

@@ -78,6 +78,6 @@ class DrowsyPersistence extends events.EventEmitter
       callback(message)
 
   drowsyUrl: ->
-    "http://#{@config.hostname}:#{@config.port}"
+    "#{@config.scheme}://#{@config.hostname}:#{@config.port}"
 
 exports.DrowsyPersistence = DrowsyPersistence
