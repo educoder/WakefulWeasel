@@ -1,37 +1,146 @@
-WakefulWeasel
-=============
+Backbone.Drowsy
+===============
 
-Pub/Sub for use with DrowsyDromedary, based on Faye.
-
-See https://github.com/zuk/Backbone.Drowsy and https://github.com/zuk/DrowsyDromedary.
-
-## Installation
-
-    git clone https://github.com/educoder/WakefulWeasel.git
-    npm install
+[Backbone.js](http://backbonejs.org/) Model + Collection classes for use with the 
+[DrowsyDromedary](https://github.com/zuk/DrowsyDromedary) REST interface for [MongoDB](http://www.mongodb.org/).
 
 
-## Configuration
-WakefulWeasel is looking for a `config.json` in order to configure various settings. If no `config.json` file is present the following will be assumed:
+Usage
+-----
+
+```js
+var myDrowsyServer = new Drowsy.Server('http://localhost:9292');
+var myDatabase = myDrowsyServer.database('example_db');
+
+// extend a base Drowsy.Document (i.e. Backbone.Model) for your needs
+var MyModel = myDatabase.Document('example_collection').extend({
+    foobar: function() {
+      return this.get('foo') * 2;
+    }
+  });
+  
+var doc = new MyModel();
+doc.on('sync', function (d) {
+  console.log("Doc is: "+d.toJSON());
+});
+
+doc.set('blah', 'moo');
+doc.save();
+
+doc.foobar();
+
+// extend a base Drowsy.Collection for your needs
+var MyCollection = myDatabase.Collection('example_collection').extend({
+  model: MyModel
+});
+
+var coll = new MyCollection();
+coll.fetch();
+
+
+// you can also fetch the list of databases on a server
+myDrowsyServer.databases(function (dbs) {
+  (dbs[0] instanceof Drowsy.Database) === true
+});
+
+// and fetch the list of collections in a database
+myDatabase.collections(function (colls) {
+  (colls[0] instanceof Drowsy.Collection) == true
+});
+```
+
+See the [example](https://github.com/zuk/Backbone.Drowsy/tree/master/example) 
+and [test](https://github.com/zuk/Backbone.Drowsy/tree/master/test)
+directories for more details.
+
+
+Authentication
+--------------
+
+For basic HTTP authentication, run the following code prior to sending out 
+any requests:
+
+```js
+var username = "foo";
+var password = "bar";
+
+Backbone.$.ajaxSetup({
+  beforeSend: function(xhr) {
+    return xhr.setRequestHeader('Authorization', 
+        'Basic ' + btoa(username + ':' + password));
+  }
+});
+```
+
+See the AJAX configuration options for [jQuery](http://api.jquery.com/category/ajax/)
+or [Zepto](http://zeptojs.com/#ajax), dependin on which Backbone sync backend you're
+ using.
+
+
+Automatically Broadcasting Changes
+----------------------------------
+
+Backbone.Drowsy can automatically broadcast changes to Documents and Collections
+through WakefulWeasel (i.e. using [Faye](http://faye.jcoglan.com/)). To enable
+Wakeful functionality, load the `wakeful.js` script:
+
+```html
+<script src="wakeful.js"></script>
+```
+
+Then call the `Wakeful.wake()` method on a `Drowsy.Document` or `Drowsy.Collection` instance, like so:
+
+```js
+var doc = new MyModel();
+
+var weaselUrl = "http://localhost:7777/faye";
+
+doc.wake(weaselUrl);
+```
+
+`.wake()` imbues the Document or Collection with special `Backbone.sync`
+behaviour that automatically broadcasts changes to a Document or Collection 
+to all other Documents or Collections using that URL.
+
+For example, calling `doc.save()` would automatically push `doc`'s state to
+any other doc with the same URL (i.e. to other browsers/clients).
+
+**TODO: write some more usage examples**
+
+In the meantime, see https://github.com/zuk/Backbone.Drowsy/blob/master/test/wakeful.test.coffee#L320
+
+Browser or Node.js?
+-------------------
+
+Backbone.Drowsy should work both in a browser and under node.js.
+
+
+Running Tests/Specs
+-------------------
+
+With node, `cd` into the Backbone.Drowsy directory, then install dependencies using:
+
+`npm install`
+
+You should now be able to run all tests in `test/` by running the following in the root Backbone.Drowsy directory:
+
+`cake test`
+
+By default the tests run against `http://localhost:9292` for DrowsyDromedary and `http://localhost:7777/faye` for 
+WakefulWeasel.
+To test against a different DrowsyDromedary and WakefulWeasel instance, set the DROWSY_URL and WEASEL_URL 
+environment variables, like this:
+
+`DROWSY_URL=http://drowsy.example.com WEASEL_URL=http://weasel.example.com/faye cake test`
+
+
+##### You can also run the tests in the browser:
+
+First, make sure the Backbone.Drowsy directory is accessible via a web browser. For example, you can serve
+the directory contents with Ruby's WEBrick. Just run the following in the root Backbone.Drowsy directory:
 
 ```
-port     7777
-mount    /faye
-timeout  30
+ruby -r webrick -e "s = WEBrick::HTTPServer.new(:Port => 8000, :DocumentRoot => Dir.pwd); trap('INT') { s.shutdown }; s.start"
 ```
-Please note that *no persistance* will be enabled since no DrowsyDromedary instance is specified.
 
-Use the provided `config.example.json`, copy it to `config.json` and change the values accordingly.
-
-If you remove the `username` or `password` setting WakefulWeasel will **not** send the `Basic auth` header to the DrowsyDromedary server.
-Should you use Drowsy with `Basic auth` enabled you **must** provide the correct `username` and `password` in your `config.json` or otherwise WakefulWeasel will not be able to persist data!
-
-**Warning:** Do not add your username and password to any version control!
-**Warning 2:** Never use Basic auth without HTTPS unless you are debugging locally!
-
-## Start
-
-Copy config.json.example into config.json and change values in config.json to suit your setup
-
-    node weasel.js
-
+Then point your browser to [http://localhost:8000/test](http://localhost:8000/test).
