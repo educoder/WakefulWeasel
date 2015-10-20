@@ -1,5 +1,6 @@
 http = require('http')
 faye = require('faye')
+redis = require('faye-redis')
 fs = require('fs')
 events = require('events')
 DrowsyPersistence = require('./drowsy_persistence').DrowsyPersistence
@@ -49,7 +50,10 @@ class Weasel extends events.EventEmitter
         defaults =
             port: 7777
             mount: '/faye'
-            timeout: 30
+            timeout: 60
+            engine:
+              type: redis
+              host: 'localhost'
 
         configPath = CONFIG
 

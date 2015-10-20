@@ -15,9 +15,10 @@
     "url": "https://github.com/zuk/WakefulWeasel.git"
   },
   "dependencies": {
-    "faye": "0.8.9",
     "optimist": "*",
-    "request": "~2.44.0"
+    "request": "~2.44.0",
+    "faye": "~1.1.2",
+    "faye-redis": "~0.2.0"
   },
   "analyze": false,
   "devDependencies": {
